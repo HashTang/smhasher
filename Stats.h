@@ -38,7 +38,8 @@ inline uint32_t f3mix ( uint32_t k )
 template< typename hashtype >
 int FindCollisions ( std::vector<hashtype> & hashes,
                      HashSet<hashtype> & collisions,
-                     int maxCollisions )
+                     int maxCollisions,
+                     bool keepCollisions = false)
 {
   int collcount = 0;
 
@@ -50,7 +51,8 @@ int FindCollisions ( std::vector<hashtype> & hashes,
     {
       collcount++;
 
-      if((int)collisions.size() < maxCollisions)
+      // to display only the first maxCollisions (1000)
+      if(keepCollisions && (int)collisions.size() < maxCollisions)
       {
         collisions.insert(hashes[hnb]);
       }
@@ -283,38 +285,16 @@ bool TestHighbitsCollisions ( std::vector<hashtype> & hashes)
 
 //-----------------------------------------------------------------------------
 
-template < class keytype, typename hashtype >
-int PrintCollisions ( hashfunc<hashtype> hash, std::vector<keytype> & keys )
+template < typename hashtype >
+void PrintCollisions ( HashSet<hashtype> & keys )
 {
-  int collcount = 0;
-
-  typedef std::map<hashtype,keytype> htab;
-  htab tab;
-
-  for(size_t i = 1; i < keys.size(); i++)
+  auto iter = keys.begin();
+  while(iter != keys.end())
   {
-    keytype & k1 = keys[i];
-
-    hashtype h = hash(&k1,sizeof(keytype),0);
-
-    typename htab::iterator it = tab.find(h);
-
-    if(it != tab.end())
-    {
-      keytype & k2 = (*it).second;
-
-      printf("A: ");
-      printbits(&k1,sizeof(keytype));
-      printf("B: ");
-      printbits(&k2,sizeof(keytype));
-    }
-    else
-    {
-      tab.insert( std::make_pair(h,k1) );
-    }
+    const hashtype & k1 = (*iter);
+    printbits((unsigned char*)&k1,sizeof(hashtype));
+    iter++;
   }
-
-  return collcount;
 }
 
 //----------------------------------------------------------------------------
@@ -356,9 +336,7 @@ bool TestDistribution ( std::vector<hashtype> & hashes, bool drawDiagram )
     for(size_t j = 0; j < hashes.size(); j++)
     {
       hashtype & hash = hashes[j];
-
       uint32_t index = window(&hash,sizeof(hash),start,width);
-
       bins[index]++;
     }
 
@@ -455,7 +433,7 @@ bool TestHashList ( std::vector<hashtype> & hashes, bool drawDiagram,
 
     double collcount = 0;
     HashSet<hashtype> collisions;
-    collcount = FindCollisions(hashes, collisions, 1000);
+    collcount = FindCollisions(hashes, collisions, 1000, drawDiagram);
     printf("actual %6i (%.2fx)", (int)collcount, collcount / expected);
 
     if(sizeof(hashtype) == sizeof(uint32_t))
@@ -480,7 +458,7 @@ bool TestHashList ( std::vector<hashtype> & hashes, bool drawDiagram,
       {
         printf(" !!!!!");
         result = false;
-        //if(drawDiagram) PrintCollisions(hashes, collisions);
+        if(drawDiagram) PrintCollisions(collisions);
       }
     }
 
@@ -656,16 +634,12 @@ void TestDistributionFast ( std::vector<hashtype> & hashes, double & dworst, dou
     for(size_t j = 0; j < hashes.size(); j++)
     {
       hashtype & hash = hashes[j];
-
       uint32_t index = window(&hash,sizeof(hash),start,16);
-
       bins[index]++;
     }
 
     double n = calcScore(&bins.front(),(int)bins.size(),(int)hashes.size());
-
     davg += n;
-
     if(n > dworst) dworst = n;
   }
 
